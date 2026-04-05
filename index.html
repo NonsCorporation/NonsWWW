@@ -42,6 +42,17 @@
       -moz-osx-font-smoothing:grayscale;
       padding:2rem;
     }
+    .page-header{
+      width:min(92vw,480px);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      gap:0.75rem;
+      margin-bottom:1rem;
+      padding-top:0.5rem;
+    }
     .card{
       width:min(92vw,480px);
       padding:3rem;
@@ -109,20 +120,277 @@
       text-decoration:none;
     }
     .btn:hover{transform:translateY(-2px);box-shadow:0 14px 28px rgba(103,104,171,0.16)}
+    .description{
+      margin:0;
+      color:var(--muted);
+      font-size:0.95rem;
+      line-height:1.55;
+      max-width:32rem;
+      text-align:center;
+    }
+    .snake-preview{
+      width:100%;
+      max-width:320px;
+      height:auto;
+      border-radius:18px;
+      background:#040404;
+      border:1px solid rgba(255,255,255,0.08);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,0.02);
+      touch-action:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .control-panel{
+      width:100%;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:0.75rem;
+    }
+    .info-row{
+      width:100%;
+      max-width:320px;
+      display:flex;
+      justify-content:space-between;
+      gap:1rem;
+      color:var(--muted);
+      font-size:0.95rem;
+    }
+    .info-row span{font-weight:700;color:var(--text)}
+    .mobile-controls{
+      width:100%;
+      max-width:280px;
+      display:grid;
+      grid-template-columns:repeat(3, minmax(0, 1fr));
+      grid-template-rows:repeat(2, minmax(0, auto));
+      gap:0.5rem;
+      justify-items:center;
+      align-items:center;
+    }
+    .direction-btn{
+      width:72px;
+      height:72px;
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,0.12);
+      color:var(--bg);
+      background:#ffffff;
+      font-weight:800;
+      font-size:1.25rem;
+      cursor:pointer;
+      box-shadow:0 4px 12px rgba(0,0,0,0.16);
+      transition:transform .16s ease,box-shadow .16s ease,opacity .2s ease,background .2s ease,color .2s ease;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:0;
+      user-select:none;
+      -webkit-user-select:none;
+      -moz-user-select:none;
+      -ms-user-select:none;
+    }
+    .direction-btn:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(0,0,0,0.16);background:#f5f5f5;color:#101010}
+    .direction-btn.placeholder{
+      visibility:hidden;
+      background:transparent;
+      box-shadow:none;
+      cursor:default;
+    }
     @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-    @media (max-width:640px){.card{padding:2rem;border-radius:14px}.logo-container{width:64px;height:64px}}
+    @media (max-width:640px){
+      body{padding:1rem;}
+      .card{padding:2rem;border-radius:14px}
+      .page-header{margin-bottom:0.8rem;gap:0.6rem}
+      .logo-container{width:64px;height:64px}
+      .tagline{font-size:1rem}
+      .description{font-size:0.92rem;max-width:90vw}
+      .snake-preview{max-width:280px}
+      .mobile-controls{max-width:260px}
+    }
   </style>
 </head>
 <body>
-  <main class="card" role="main" aria-labelledby="main-title">
+  <section class="page-header">
     <div class="logo-container">
       <img src="./logo-circle-blackbg.png" alt="Nons logo">
     </div>
     <div>
       <h1 id="main-title">Nons</h1>
       <p class="tagline">the reasonable social media</p>
+      <p class="description">A thoughtful community experience built around real connections, coming soon.</p>
     </div>
-    <span class="btn">Coming Soon</span>
+  </section>
+  <main class="card" role="main" aria-labelledby="main-title">
+    <canvas id="snake-preview" class="snake-preview" width="288" height="288" aria-label="Snake preview"></canvas>
+    <div class="control-panel">
+      <div class="info-row">
+        <div>Score: <span id="preview-score">0</span></div>
+        <div>Level: <span id="preview-level">1</span></div>
+      </div>
+      <div class="mobile-controls" aria-label="Snake mobile controls">
+        <button class="direction-btn placeholder" type="button" aria-hidden="true"></button>
+        <button class="direction-btn" data-x="0" data-y="-1" type="button" aria-label="Move up">↑</button>
+        <button class="direction-btn placeholder" type="button" aria-hidden="true"></button>
+        <button class="direction-btn" data-x="-1" data-y="0" type="button" aria-label="Move left">←</button>
+        <button class="direction-btn" data-x="0" data-y="1" type="button" aria-label="Move down">↓</button>
+        <button class="direction-btn" data-x="1" data-y="0" type="button" aria-label="Move right">→</button>
+      </div>
+    </div>
   </main>
+  <script>
+    const previewCanvas = document.getElementById('snake-preview');
+    const previewCtx = previewCanvas.getContext('2d');
+    const previewGrid = 12;
+    const previewTile = 24;
+    const previewSize = previewGrid * previewTile;
+    let previewSnake = [
+      { x: 4, y: 6 },
+      { x: 3, y: 6 },
+      { x: 2, y: 6 },
+    ];
+    let previewDirection = { x: 1, y: 0 };
+    let previewApple = { x: 8, y: 5 };
+    let previewScore = 0;
+    let previewLevel = 1;
+    let previewFrame = 0;
+    let previewGameOver = false;
+
+    const previewScoreEl = document.getElementById('preview-score');
+    const previewLevelEl = document.getElementById('preview-level');
+
+    function drawPreview() {
+      previewCtx.fillStyle = '#040404';
+      previewCtx.fillRect(0, 0, previewSize, previewSize);
+      previewCtx.fillStyle = 'rgba(255,255,255,0.08)';
+      for (let x = 0; x < previewGrid; x += 1) {
+        previewCtx.fillRect(x * previewTile, 0, 1, previewSize);
+      }
+      for (let y = 0; y < previewGrid; y += 1) {
+        previewCtx.fillRect(0, y * previewTile, previewSize, 1);
+      }
+
+      previewCtx.fillStyle = '#ff3b3b';
+      previewCtx.fillRect(previewApple.x * previewTile + 4, previewApple.y * previewTile + 4, previewTile - 8, previewTile - 8);
+
+      previewSnake.forEach((segment, index) => {
+        previewCtx.fillStyle = index === 0 ? '#f8f8f8' : '#8da0ff';
+        previewCtx.fillRect(segment.x * previewTile + 3, segment.y * previewTile + 3, previewTile - 6, previewTile - 6);
+      });
+
+      if (previewGameOver) {
+        previewCtx.fillStyle = 'rgba(0,0,0,0.55)';
+        previewCtx.fillRect(0, 0, previewSize, previewSize);
+        previewCtx.fillStyle = '#ffffff';
+        previewCtx.font = 'bold 18px Onest, system-ui, sans-serif';
+        previewCtx.textAlign = 'center';
+        previewCtx.fillText('Game Over', previewSize / 2, previewSize / 2 - 10);
+        previewCtx.font = '12px Onest, system-ui, sans-serif';
+        previewCtx.fillText('Tap an arrow to restart', previewSize / 2, previewSize / 2 + 14);
+      }
+    }
+
+    function setPreviewScore(score) {
+      previewScore = score;
+      previewScoreEl.textContent = previewScore;
+    }
+
+    function setPreviewLevel(level) {
+      previewLevel = level;
+      previewLevelEl.textContent = previewLevel;
+    }
+
+    function resetPreview() {
+      previewSnake = [
+        { x: 4, y: 6 },
+        { x: 3, y: 6 },
+        { x: 2, y: 6 },
+      ];
+      previewDirection = { x: 1, y: 0 };
+      previewApple = { x: 8, y: 5 };
+      previewScore = 0;
+      previewLevel = 1;
+      previewGameOver = false;
+      setPreviewScore(0);
+      setPreviewLevel(1);
+      previewFrame = 0;
+      drawPreview();
+    }
+
+    function stepPreview() {
+      if (previewGameOver) return;
+      const head = {
+        x: (previewSnake[0].x + previewDirection.x + previewGrid) % previewGrid,
+        y: (previewSnake[0].y + previewDirection.y + previewGrid) % previewGrid,
+      };
+
+      if (previewSnake.slice(1).some(segment => segment.x === head.x && segment.y === head.y)) {
+        previewGameOver = true;
+        return;
+      }
+
+      previewSnake.unshift(head);
+      if (head.x === previewApple.x && head.y === previewApple.y) {
+        setPreviewScore(previewScore + 1);
+        if (previewScore % 5 === 0 && previewLevel < 9) {
+          setPreviewLevel(previewLevel + 1);
+        }
+        placePreviewApple();
+      } else {
+        previewSnake.pop();
+      }
+    }
+
+    function placePreviewApple() {
+      let position;
+      const collision = () => previewSnake.some(segment => segment.x === position.x && segment.y === position.y);
+      do {
+        position = {
+          x: Math.floor(Math.random() * previewGrid),
+          y: Math.floor(Math.random() * previewGrid),
+        };
+      } while (collision());
+      previewApple = position;
+    }
+
+    function setDirection(x, y) {
+      if (previewGameOver) {
+        resetPreview();
+      }
+      if (x === -previewDirection.x && y === -previewDirection.y) return;
+      previewDirection = { x, y };
+    }
+
+    document.addEventListener('keydown', (event) => {
+      switch (event.key) {
+        case 'ArrowUp': case 'w': case 'W': setDirection(0, -1); break;
+        case 'ArrowDown': case 's': case 'S': setDirection(0, 1); break;
+        case 'ArrowLeft': case 'a': case 'A': setDirection(-1, 0); break;
+        case 'ArrowRight': case 'd': case 'D': setDirection(1, 0); break;
+      }
+    });
+
+    const controlButtons = document.querySelectorAll('.direction-btn');
+    controlButtons.forEach((button) => {
+      const x = Number(button.getAttribute('data-x'));
+      const y = Number(button.getAttribute('data-y'));
+      const handleControl = (event) => {
+        event.preventDefault();
+        setDirection(x, y);
+      };
+      button.addEventListener('click', handleControl);
+      button.addEventListener('touchstart', handleControl, { passive: false });
+    });
+
+    previewCanvas.addEventListener('touchstart', (event) => {
+      event.preventDefault();
+    }, { passive: false });
+
+    function previewLoop() {
+      stepPreview();
+      drawPreview();
+      setTimeout(previewLoop, 120);
+    }
+
+    drawPreview();
+    previewLoop();
+  </script>
 </body>
 </html>
